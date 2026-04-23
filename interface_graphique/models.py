@@ -10,38 +10,32 @@ Description : Gestion des objets interactifs (Labware) sur le plateau.
 =========================================================================================
 """
 
-from constants import *
 import json
 import os
 
+import app_paths
+from constants import MM_TO_PIX
+
 def load_labware_dims(json_filename):
     """
-    Localise et charge les dimensions réelles d'un labware depuis l'arborescence Jubilee.
-    
+    Localise et charge les dimensions réelles d'un labware.
+
     Args:
-        json_filename (str): Nom du fichier de définition (ex: 'greiner_24_wellplate.json').
-    
+        json_filename (str): Chemin absolu (cache Opentrons) ou nom de fichier
+                             de la banque locale (ex: 'greiner_24_wellplate.json').
+
     Returns:
-        dict: Contenu complet du JSON ou None en cas d'erreur.
+        dict | None: Contenu du JSON, ou None si introuvable / illisible.
     """
-    # 1. Résolution du chemin absolu pour garantir le fonctionnement multi-OS
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(current_dir) # Remonte à la racine 'science-jubilee'
-    
-    # 2. Construction du chemin vers le dossier master des définitions labware
-    base_path = os.path.join(
-        project_root, 
-        "src", "science_jubilee", "labware", "labware_definition"
-    )
-    
-    full_path = os.path.join(base_path, json_filename)
-    
+    full_path = app_paths.resolve_labware_json(json_filename)
+    if full_path is None:
+        print(f"⚠️  Labware introuvable : {json_filename}")
+        return None
     try:
-        with open(full_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        return data
+        with open(full_path, "r", encoding="utf-8") as f:
+            return json.load(f)
     except Exception as e:
-        print(f"⚠️ Alerte : Impossible de charger {json_filename}. Erreur: {e}")
+        print(f"⚠️  Impossible de charger {full_path} : {e}")
         return None
 
 

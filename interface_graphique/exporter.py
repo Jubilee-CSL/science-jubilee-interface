@@ -13,11 +13,18 @@ Description : Module de gestion des exports pour l'interface graphique.
 """
 
 import json
-import ezdxf
 import math
 import os
-import numpy as np
-from constants import *
+
+import ezdxf
+
+import app_paths
+from constants import (
+    DIAMETRE_TROU, LABWARE, OFFSET_CONTOUR,
+    OFFSET_TROU_LEFT_X, OFFSET_TROU_LEFT_Y,
+    OFFSET_TROU_RIGHT_X, OFFSET_TROU_RIGHT_Y,
+    PLATEAU_H_MM, PLATEAU_W_MM,
+)
 
 
 def export_led_pattern(light_data, filename="pattern_lumiere.json"):
@@ -49,14 +56,8 @@ def export_layout(placed_objects, slot_assignments, canvas, canvas_plateau, file
         canvas_plateau (int): L'ID du plateau sur le canvas.
         filename (str): Le nom du fichier d'export.
     """
-    # 1. Résolution dynamique des chemins pour garantir la portabilité
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.abspath(os.path.join(current_dir, ".."))
-    target_dir = os.path.join(project_root, "src", "science_jubilee", "decks", "deck_definition")
-
-    # 2. Sécurisation de l'arborescence
-    os.makedirs(target_dir, exist_ok=True)
-    full_path = os.path.join(target_dir, filename)
+    # 1. Résolution du chemin (crée l'arborescence si nécessaire)
+    full_path = app_paths.resolve_deck_json(filename)
 
     # 3. Récupération des dimensions et calcul des échelles (Pixels -> Millimètres)
     x0_px, y0_px, x1_px, y1_px = canvas.coords(canvas_plateau)
@@ -114,11 +115,7 @@ def export_to_dxf(json_file="experience.json"):
         json_file (str): Le fichier JSON source contenant les coordonnées.
     """
 
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.abspath(os.path.join(current_dir, ".."))
-    target_dir = os.path.join(project_root, "src", "science_jubilee", "decks", "deck_definition")
-
-    json_path = os.path.join(target_dir, json_file)
+    json_path = app_paths.resolve_deck_json(json_file)
 
     try:
         with open(json_path, "r", encoding="utf-8") as f:
@@ -228,14 +225,10 @@ def json_to_gcode(json_file, gcode_file, z_up=30.0, z_down=20.0, feedrate=4000):
         z_down (float): Hauteur de travail (Z).
         feedrate (int): Vitesse de déplacement (F).
     """
-    # Résolution des chemins relatifs au projet
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.abspath(os.path.join(current_dir, ".."))
-    target_dir = os.path.join(project_root, "src", "science_jubilee", "decks", "deck_definition")
+    # Résolution des chemins (crée le dossier si nécessaire)
+    json_path  = app_paths.resolve_deck_json(json_file)
+    gcode_path = app_paths.resolve_deck_json(gcode_file)
 
-    json_path = os.path.join(target_dir, json_file)
-    gcode_path = os.path.join(target_dir, gcode_file)
-    
     try:
         with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
