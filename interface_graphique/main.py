@@ -11,6 +11,7 @@ Description : Point d'entrée de l'application.
 import customtkinter as ctk
 
 import exporter
+import deck_3d_exporter
 from constants import PLATEAU_H, PLATEAU_W
 from labware_browser import LabwareBrowserFrame
 from led_tab import LedControlTab
@@ -76,6 +77,7 @@ class App(ctk.CTk):
             export_gcode=lambda: exporter.json_to_gcode(
                 "experience.json", "plan_jubilee.txt"
             ),
+            export_3d=self._export_3d,
             clear_canvas=self.workspace.clear_canvas,
         )
 
@@ -90,6 +92,47 @@ class App(ctk.CTk):
 
     def _on_selection_change(self, label: str):
         self.sidebar.set_selected_label(label)
+
+
+    # ─── Export 3D ───────────────────────────────────────────────────────────
+
+    def _export_3d(self):
+        """Lance l'export 3D (SCAD → STL → .blend) en arrière-plan."""
+        from tkinter import messagebox
+
+        placed = list(self.workspace.placed_objects)
+        if not placed:
+            messagebox.showwarning(
+                "Export 3D", "Aucun labware placé — ajoutez au moins un objet."
+            )
+            return
+
+        def on_done(result: deck_3d_exporter.ExportResult):
+            msg = (
+                f"Export 3D terminé.\n\n"
+                f"Dossier : {result.output_dir}\n"
+                f"SCAD : {len(result.scad_files)} fichier(s)\n"
+                f"STL  : {len(result.stl_files)} fichier(s)\n"
+                f".blend : {'oui' if result.blend_file else 'non'}"
+            )
+            if result.warnings:
+                msg += "\n\nAvertissements :\n- " + "\n- ".join(result.warnings)
+            self.after(0, lambda: messagebox.showinfo("Export 3D", msg))
+
+        def on_error(exc: Exception):
+            self.after(0, lambda: messagebox.showerror("Export 3D", str(exc)))
+
+        def on_progress(step: str):
+            print(f"[3D] {step}")
+
+        deck_3d_exporter.export_deck_3d_async(
+            placed_objects=placed,
+            canvas=self.workspace.canvas,
+            canvas_plateau=self.workspace.canvas_plateau,
+            on_done=on_done,
+            on_error=on_error,
+            on_progress=on_progress,
+        )
 
 
 if __name__ == "__main__":

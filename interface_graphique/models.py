@@ -61,6 +61,7 @@ class DraggableObject:
         self.canvas = canvas
         self.name = name
         self.angle = 0 # État initial de la rotation
+        self.json_name = json_name  # Conservé pour les exports 3D (SCAD/STL)
         
         # 1. Chargement des données techniques
         self.data = load_labware_dims(json_name)

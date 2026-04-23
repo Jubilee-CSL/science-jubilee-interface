@@ -37,11 +37,12 @@ def export_led_pattern(light_data, filename="pattern_lumiere.json"):
     """
     pattern = {str(k): v for k, v in light_data.items()}
     data = {"pattern": pattern}
-    
-    with open(filename, "w", encoding="utf-8") as f:
+
+    full_path = app_paths.resolve_experience_file(filename)
+    with open(full_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
-        
-    print(f"✅ Pattern LED exporté -> {filename}")
+
+    print(f"✅ Pattern LED exporté -> {full_path}")
 
 
 def export_layout(placed_objects, slot_assignments, canvas, canvas_plateau, filename="experience.json"):
@@ -209,8 +210,9 @@ def export_to_dxf(json_file="experience.json"):
                 ]
                 msp.add_lwpolyline(final_pts, close=True, dxfattribs={"layer": "labware"})
         
-        doc.saveas(p["name"])
-        print(f"✅ Fichier {p['name']} généré avec succès.")
+        out_path = app_paths.resolve_experience_file(p["name"])
+        doc.saveas(out_path)
+        print(f"✅ Fichier {out_path} généré avec succès.")
 
 
 def json_to_gcode(json_file, gcode_file, z_up=30.0, z_down=20.0, feedrate=4000):

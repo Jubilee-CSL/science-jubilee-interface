@@ -11,6 +11,8 @@ from typing import Callable
 
 import customtkinter as ctk
 
+import app_paths
+
 
 @dataclass
 class SidebarCallbacks:
@@ -20,6 +22,7 @@ class SidebarCallbacks:
     load_config:       Callable[[], None]
     export_dxf:        Callable[[], None]
     export_gcode:      Callable[[], None]
+    export_3d:         Callable[[], None]
     clear_canvas:      Callable[[], None]
 
 
@@ -38,6 +41,29 @@ class Sidebar(ctk.CTkFrame):
             self, text="Outil sélectionné:\nAucun", font=("Arial", 12),
         )
         self.lbl_selected.pack(pady=(12, 8))
+
+        # ── Nom de l'expérience (dossier de sortie unique) ──────────────────
+        ctk.CTkLabel(
+            self, text="Nom de l'expérience :",
+            font=("Arial", 11),
+        ).pack(pady=(8, 2), padx=10, anchor="w")
+
+        self._exp_var = ctk.StringVar(value=app_paths.get_experience_name())
+        self._exp_entry = ctk.CTkEntry(
+            self, textvariable=self._exp_var,
+            placeholder_text="experience",
+        )
+        self._exp_entry.pack(fill="x", pady=(0, 2), padx=10)
+        self._exp_var.trace_add(
+            "write",
+            lambda *_: app_paths.set_experience_name(self._exp_var.get().strip()),
+        )
+        ctk.CTkLabel(
+            self,
+            text="Tous les exports (JSON, DXF, G-code,\nSCAD, STL, .blend, LED) sont\nregroupés dans ce dossier.",
+            font=("Arial", 9), text_color="gray",
+            justify="left",
+        ).pack(pady=(0, 6), padx=10, anchor="w")
 
         ctk.CTkLabel(self, text="--- Actions ---").pack(pady=(20, 5))
 
@@ -74,6 +100,12 @@ class Sidebar(ctk.CTkFrame):
         ctk.CTkButton(
             self, text="G-code Dessin (Stylo)",
             command=self._cb.export_gcode,
+        ).pack(fill="x", pady=4, padx=10)
+
+        ctk.CTkButton(
+            self, text="Modèle 3D (SCAD / STL / .blend)",
+            fg_color="#6a1b9a", hover_color="#4a148c",
+            command=self._cb.export_3d,
         ).pack(fill="x", pady=4, padx=10)
 
         ctk.CTkButton(

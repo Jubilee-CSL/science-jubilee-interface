@@ -42,6 +42,26 @@ OFFSET_CONTOUR = 5
 MAX_ILLUMINANCE = 4095
 
 
+# --- 3-BIS. EXPORT 3D (OpenSCAD + Blender) ---
+# Épaisseur du plateau Jubilee utilisée pour le modèle 3D (mm)
+DECK_THICKNESS_MM = 3.0
+
+# Résolution des cercles/cylindres OpenSCAD
+OPENSCAD_FN = 64
+
+# Exécutables externes (None → auto-détection via PATH)
+# Exemples d'override : r"C:\Program Files\OpenSCAD\openscad.exe"
+OPENSCAD_EXECUTABLE: str | None = r"C:/Program Files/OpenSCAD/openscad.exe"
+BLENDER_EXECUTABLE:  str | None = None
+
+
+# --- 3-TER. DOSSIER DE SORTIE DES EXPÉRIENCES ---
+# Racine absolue où sont enregistrés tous les exports (JSON, DXF, G-code,
+# SCAD, STL, .blend, pattern LED). Un sous-dossier daté est créé automatiquement
+# pour chaque expérience (ex. "2026-04-24_experience").
+EXPERIMENT_OUTPUT_DIR = r"C:\Users\Alienor\Documents\Projects\Jubilee\science-jubilee-interface\interface_graphique\experiment_deck"
+
+
 # --- 4. RÈGLES DE COLLISION ET PLACEMENT (Interface) ---
 # Marges de sécurité pour éviter le chevauchement d'objets (mm)
 MARGIN_BETWEEN_OBJECTS = 5 
