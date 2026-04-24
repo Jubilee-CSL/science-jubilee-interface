@@ -10,7 +10,7 @@ Description : Point central de résolution des chemins du projet.
 import os
 from datetime import datetime
 
-from constants import EXPERIMENT_OUTPUT_DIR
+from constants import EXPERIMENT_OUTPUT_DIR, LABWARE_REPO_PATH
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(_THIS_DIR, ".."))
@@ -20,17 +20,11 @@ PROJECT_ROOT = os.path.abspath(os.path.join(_THIS_DIR, ".."))
 # Peut être modifié à l'exécution via set_experience_name().
 _EXPERIENCE_NAME: str = "experience"
 
-# Le dossier daté est figé au premier appel à experience_dir() pour que tous
-# les exports d'une même session atterrissent au même endroit, même si minuit
-# passe entre deux clics. Reset via reset_experience_session().
-_SESSION_DIR: str | None = None
-
 
 def set_experience_name(name: str) -> None:
-    """Change le nom de l'expérience. Réinitialise le dossier de session."""
-    global _EXPERIENCE_NAME, _SESSION_DIR
-    _EXPERIENCE_NAME = name or "experience"
-    _SESSION_DIR = None  # sera recalculé au prochain export
+    """Change le nom de l'expérience active."""
+    global _EXPERIENCE_NAME
+    _EXPERIENCE_NAME = name.strip() or "experience"
 
 
 def get_experience_name() -> str:
@@ -38,9 +32,8 @@ def get_experience_name() -> str:
 
 
 def reset_experience_session() -> None:
-    """Force le recalcul du dossier daté (utile pour démarrer une nouvelle session)."""
-    global _SESSION_DIR
-    _SESSION_DIR = None
+    """Conservé pour compatibilité — sans effet depuis la suppression du cache."""
+    pass
 
 
 def deck_definition_dir() -> str:
@@ -49,14 +42,19 @@ def deck_definition_dir() -> str:
     )
 
 
+def labware_collection_dir() -> str:
+    """Dossier racine des labwares pré-téléchargés (sous-dossier par labware)."""
+    return os.path.join(LABWARE_REPO_PATH, "labware_definition")
+
+
 def labware_definition_dir() -> str:
-    return os.path.join(
-        PROJECT_ROOT, "src", "science_jubilee", "labware", "labware_definition"
-    )
+    """Alias — retourne le même dossier que labware_collection_dir."""
+    return labware_collection_dir()
 
 
 def labware_cache_dir() -> str:
-    return os.path.join(_THIS_DIR, "labware_cache")
+    """Conservé pour compatibilité — redirige vers labware_collection_dir."""
+    return labware_collection_dir()
 
 
 def experiment_root() -> str:
@@ -66,26 +64,15 @@ def experiment_root() -> str:
 
 def experience_dir(experience_name: str | None = None) -> str:
     """
-    Retourne (et crée) le dossier unique de sortie de l'expérience active.
+    Retourne (et crée) le dossier de sortie de l'expérience active.
     Format : <EXPERIMENT_OUTPUT_DIR>/<YYYY-MM-DD>_<nom_experience>/
-    Le chemin est mis en cache pour la session courante.
+    Le nom est lu en direct depuis _EXPERIENCE_NAME à chaque appel.
     """
-    global _SESSION_DIR
-    if experience_name is not None:
-        # Appel avec un nom explicite → pas de cache
-        name = experience_name
-        date_prefix = datetime.now().strftime("%Y-%m-%d")
-        target = os.path.join(experiment_root(), f"{date_prefix}_{name}")
-        os.makedirs(target, exist_ok=True)
-        return target
-
-    if _SESSION_DIR is None:
-        date_prefix = datetime.now().strftime("%Y-%m-%d")
-        _SESSION_DIR = os.path.join(
-            experiment_root(), f"{date_prefix}_{_EXPERIENCE_NAME}"
-        )
-    os.makedirs(_SESSION_DIR, exist_ok=True)
-    return _SESSION_DIR
+    name = experience_name or _EXPERIENCE_NAME
+    date_prefix = datetime.now().strftime("%Y-%m-%d")
+    target = os.path.join(experiment_root(), f"{date_prefix}_{name}")
+    os.makedirs(target, exist_ok=True)
+    return target
 
 
 def resolve_experience_file(filename: str, experience_name: str | None = None) -> str:
@@ -113,5 +100,9 @@ def resolve_3d_output_dir(experience_name: str | None = None) -> str:
 def resolve_labware_json(filename: str):
     if os.path.isabs(filename):
         return filename if os.path.exists(filename) else None
-    candidate = os.path.join(labware_definition_dir(), filename)
-    return candidate if os.path.exists(candidate) else None
+    # New structure: labware_definition/<load_name>/<load_name>.json
+    load_name = os.path.splitext(os.path.basename(filename))[0]
+    candidate = os.path.join(labware_collection_dir(), load_name, filename)
+    if os.path.exists(candidate):
+        return candidate
+    return None

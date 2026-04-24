@@ -10,6 +10,7 @@ Description : Point d'entrée de l'application.
 
 import customtkinter as ctk
 
+import app_paths
 import exporter
 import deck_3d_exporter
 from constants import PLATEAU_H, PLATEAU_W
@@ -69,20 +70,83 @@ class App(ctk.CTk):
 
     def _build_sidebar_callbacks(self) -> SidebarCallbacks:
         return SidebarCallbacks(
-            show_browser_tab=lambda: self.tabview.set(self.TAB_BROWSER),
-            show_led_tab=lambda: self.tabview.set(self.TAB_LED),
-            save_config=self.workspace.save_configuration,
+            save_all=self._save_all,
             load_config=self.workspace.load_configuration,
-            export_dxf=lambda: exporter.export_to_dxf("experience.json"),
-            export_gcode=lambda: exporter.json_to_gcode(
-                "experience.json", "plan_jubilee.txt"
-            ),
-            export_3d=self._export_3d,
             clear_canvas=self.workspace.clear_canvas,
         )
 
     def _bind_shortcuts(self):
         self.bind("<Delete>", self.workspace.delete_object_under_cursor)
+
+    # ─── Helpers ─────────────────────────────────────────────────────────────
+
+    def _save_all(self):
+        """Exporte tout en une seule action : JSON, DXF, G-code, LED, puis 3D async."""
+        import os
+        from tkinter import messagebox
+
+        # 1. JSON (configuration du plateau)
+        exporter.export_layout(
+            self.workspace.placed_objects,
+            self.workspace.slot_assignments,
+            self.workspace.canvas,
+            self.workspace.canvas_plateau,
+        )
+
+        # 2. LED pattern
+        exporter.export_led_pattern(self.led_panel.light_values)
+
+        # 3. DXF
+        exporter.export_to_dxf("experience.json")
+
+        # 4. G-code
+        exporter.json_to_gcode("experience.json", "plan_jubilee.txt")
+
+        folder = app_paths.experience_dir()
+
+        # 5. 3D async (SCAD / STL / .blend) — single popup shown on completion
+        if not self.workspace.placed_objects:
+            if messagebox.askyesno(
+                "Sauvegarde terminée",
+                f"JSON, LED, DXF et G-code exportés.\n\n\U0001f4c1 {folder}\n\nOuvrir le dossier ?",
+            ):
+                os.startfile(folder)
+            return
+
+        def on_done(result: deck_3d_exporter.ExportResult):
+            def _show():
+                msg = (
+                    f"JSON, LED, DXF, G-code exportés.\n"
+                    f"SCAD : {len(result.scad_files)}  •  STL : {len(result.stl_files)}  •  "
+                    f".blend : {'oui' if result.blend_file else 'non'}"
+                )
+                if result.warnings:
+                    msg += "\n\n⚠ " + "\n⚠ ".join(result.warnings)
+                msg += f"\n\n\U0001f4c1 {result.output_dir}"
+                if messagebox.askyesno("Sauvegarde terminée", msg + "\n\nOuvrir le dossier ?"):
+                    os.startfile(result.output_dir)
+            self.after(0, _show)
+
+        def on_error(exc: Exception):
+            self.after(0, lambda: messagebox.showerror("Export 3D", str(exc)))
+
+        deck_3d_exporter.export_deck_3d_async(
+            placed_objects=list(self.workspace.placed_objects),
+            canvas=self.workspace.canvas,
+            canvas_plateau=self.workspace.canvas_plateau,
+            on_done=on_done,
+            on_error=on_error,
+            on_progress=lambda step: print(f"[3D] {step}"),
+        )
+
+    def _notify_export(self, title: str, detail: str = ""):
+        """Affiche le dossier de sortie après un export + bouton pour l'ouvrir."""
+        import os
+        from tkinter import messagebox
+        folder = app_paths.experience_dir()
+        msg = f"{detail}\n\n\U0001f4c1 {folder}" if detail else f"\U0001f4c1 {folder}"
+        if messagebox.askyesno(title, msg + "\n\nOuvrir le dossier ?"):
+            os.startfile(folder)
 
     # ─── Callbacks inter-panneaux ────────────────────────────────────────────
 
@@ -92,47 +156,6 @@ class App(ctk.CTk):
 
     def _on_selection_change(self, label: str):
         self.sidebar.set_selected_label(label)
-
-
-    # ─── Export 3D ───────────────────────────────────────────────────────────
-
-    def _export_3d(self):
-        """Lance l'export 3D (SCAD → STL → .blend) en arrière-plan."""
-        from tkinter import messagebox
-
-        placed = list(self.workspace.placed_objects)
-        if not placed:
-            messagebox.showwarning(
-                "Export 3D", "Aucun labware placé — ajoutez au moins un objet."
-            )
-            return
-
-        def on_done(result: deck_3d_exporter.ExportResult):
-            msg = (
-                f"Export 3D terminé.\n\n"
-                f"Dossier : {result.output_dir}\n"
-                f"SCAD : {len(result.scad_files)} fichier(s)\n"
-                f"STL  : {len(result.stl_files)} fichier(s)\n"
-                f".blend : {'oui' if result.blend_file else 'non'}"
-            )
-            if result.warnings:
-                msg += "\n\nAvertissements :\n- " + "\n- ".join(result.warnings)
-            self.after(0, lambda: messagebox.showinfo("Export 3D", msg))
-
-        def on_error(exc: Exception):
-            self.after(0, lambda: messagebox.showerror("Export 3D", str(exc)))
-
-        def on_progress(step: str):
-            print(f"[3D] {step}")
-
-        deck_3d_exporter.export_deck_3d_async(
-            placed_objects=placed,
-            canvas=self.workspace.canvas,
-            canvas_plateau=self.workspace.canvas_plateau,
-            on_done=on_done,
-            on_error=on_error,
-            on_progress=on_progress,
-        )
 
 
 if __name__ == "__main__":

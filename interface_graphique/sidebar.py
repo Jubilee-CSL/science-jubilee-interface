@@ -16,14 +16,9 @@ import app_paths
 
 @dataclass
 class SidebarCallbacks:
-    show_browser_tab:  Callable[[], None]
-    show_led_tab:      Callable[[], None]
-    save_config:       Callable[[], None]
-    load_config:       Callable[[], None]
-    export_dxf:        Callable[[], None]
-    export_gcode:      Callable[[], None]
-    export_3d:         Callable[[], None]
-    clear_canvas:      Callable[[], None]
+    save_all:     Callable[[], None]
+    load_config:  Callable[[], None]
+    clear_canvas: Callable[[], None]
 
 
 class Sidebar(ctk.CTkFrame):
@@ -53,11 +48,9 @@ class Sidebar(ctk.CTkFrame):
             self, textvariable=self._exp_var,
             placeholder_text="experience",
         )
-        self._exp_entry.pack(fill="x", pady=(0, 2), padx=10)
-        self._exp_var.trace_add(
-            "write",
-            lambda *_: app_paths.set_experience_name(self._exp_var.get().strip()),
-        )
+        self._exp_entry.pack(fill="x", pady=(0, 4), padx=10)
+        self._exp_entry.bind("<Return>", lambda _: self._confirm_experience_name())
+        self._exp_entry.bind("<FocusOut>", lambda _: self._confirm_experience_name())
         ctk.CTkLabel(
             self,
             text="Tous les exports (JSON, DXF, G-code,\nSCAD, STL, .blend, LED) sont\nregroupés dans ce dossier.",
@@ -68,44 +61,20 @@ class Sidebar(ctk.CTkFrame):
         ctk.CTkLabel(self, text="--- Actions ---").pack(pady=(20, 5))
 
         ctk.CTkButton(
-            self, text="BIBLIOTHÈQUE LABWARE",
+            self, text="💾  SAUVEGARDER",
+            height=44, font=("Arial", 14, "bold"),
             fg_color="#1565c0", hover_color="#0d47a1",
-            font=("Arial", 13, "bold"),
-            command=self._cb.show_browser_tab,
-        ).pack(fill="x", pady=(4, 4), padx=10)
-
-        ctk.CTkButton(
-            self, text="PLATEAU LUMINEUX",
-            fg_color="#2e7d32", hover_color="#1b5e20",
-            font=("Arial", 13, "bold"),
-            command=self._cb.show_led_tab,
-        ).pack(fill="x", pady=(4, 10), padx=10)
-
-        ctk.CTkButton(
-            self, text="Exporter Configuration",
-            fg_color="#1976d2",
-            command=self._cb.save_config,
-        ).pack(fill="x", pady=4, padx=10)
+            command=self._cb.save_all,
+        ).pack(fill="x", pady=(4, 2), padx=10)
+        ctk.CTkLabel(
+            self,
+            text="JSON • DXF • G-code • 3D (.blend)",
+            font=("Arial", 9), text_color="gray",
+        ).pack(pady=(0, 4), padx=10)
 
         ctk.CTkButton(
             self, text="Charger Configuration",
             command=self._cb.load_config,
-        ).pack(fill="x", pady=4, padx=10)
-
-        ctk.CTkButton(
-            self, text="Plan Laser Cut (DXF)",
-            command=self._cb.export_dxf,
-        ).pack(fill="x", pady=4, padx=10)
-
-        ctk.CTkButton(
-            self, text="G-code Dessin (Stylo)",
-            command=self._cb.export_gcode,
-        ).pack(fill="x", pady=4, padx=10)
-
-        ctk.CTkButton(
-            self, text="Modèle 3D (SCAD / STL / .blend)",
-            fg_color="#6a1b9a", hover_color="#4a148c",
-            command=self._cb.export_3d,
         ).pack(fill="x", pady=4, padx=10)
 
         ctk.CTkButton(
@@ -128,3 +97,8 @@ class Sidebar(ctk.CTkFrame):
 
     def set_selected_label(self, name: str):
         self.lbl_selected.configure(text=f"Outil sélectionné:\n{name}")
+
+    def _confirm_experience_name(self):
+        name = self._exp_var.get().strip() or "experience"
+        self._exp_var.set(name)
+        app_paths.set_experience_name(name)

@@ -95,8 +95,9 @@ OUTILS_LISTE = ["None", "Pipette", "Inoculator", "Fluo", "stylo", "Other"]
 
 
 # --- 7. DÉFINITIONS DU MATÉRIEL (LABWARE) ---
-# Chemin vers les fichiers de définition JSON officiels du projet Jubilee
-PATH_LABWARE = "science-jubilee/src/science_jubilee/labware/labware_definition"
+# Dépôt local des labwares pré-téléchargés (JSON, métadonnées, images, STL, SCAD).
+# Chaque labware est dans un sous-dossier : labware_definition/<load_name>/
+LABWARE_REPO_PATH = r"C:\Users\Alienor\Documents\Projects\Jubilee\labware"
 
 # Base de données des labwares utilisables
 # w_mm: largeur (axe Y machine), h_mm: longueur (axe X machine)

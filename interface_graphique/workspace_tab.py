@@ -285,7 +285,11 @@ class WorkspaceTab(ctk.CTkFrame):
             self.placed_objects, self.slot_assignments,
             self.canvas, self.canvas_plateau,
         )
-        messagebox.showinfo("Exportation", "Configuration du deck sauvegardée.")
+        folder = app_paths.experience_dir()
+        messagebox.showinfo(
+            "Exportation",
+            f"Configuration du deck sauvegardée.\n\n📁 {folder}"
+        )
 
     def load_configuration(self, json_file: str = "experience.json"):
         json_path = app_paths.resolve_deck_json(json_file)

@@ -2,8 +2,9 @@
 =========================================================================================
 Projet      : Science-Jubilee
 Fichier     : labware_browser.py
-Description : Navigateur visuel de la bibliothèque de labwares Opentrons
-              (https://labware.opentrons.com/). Cache local + filtres + images.
+Description : Navigateur visuel de la bibliothèque de labwares pré-téléchargés.
+              Lit le dépôt local (LABWARE_REPO_PATH/labware_definition) —
+              aucune connexion réseau requise.
 =========================================================================================
 """
 
@@ -12,28 +13,16 @@ import json
 import os
 import threading
 
+try:
+    from PIL import Image
+    _PIL_OK = True
+except ImportError:
+    _PIL_OK = False
+
 import app_paths
 import theme
 
-try:
-    import requests
-    from PIL import Image
-    from io import BytesIO
-    _DEPS_OK = True
-except ImportError:
-    _DEPS_OK = False
-
-_GITHUB_DIR_URL = (
-    "https://api.github.com/repos/Opentrons/opentrons/contents"
-    "/shared-data/labware/definitions/2"
-)
-_RAW_BASE_URL = (
-    "https://raw.githubusercontent.com/Opentrons/opentrons/edge"
-    "/shared-data/labware/definitions/2"
-)
-_IMG_BASE_URL = "https://labware.opentrons.com/labware-images"
-
-CACHE_DIR = app_paths.labware_cache_dir()
+COLLECTION_DIR = app_paths.labware_collection_dir()
 
 _CARDS_PER_ROW = 4
 _IMG_W, _IMG_H = 140, 90
@@ -59,17 +48,8 @@ class LabwareBrowserFrame(ctk.CTkFrame):
         self._all_cards: list[tuple[dict, ctk.CTkFrame]] = []
         self._images: dict[str, ctk.CTkImage] = {}
 
-        os.makedirs(CACHE_DIR, exist_ok=True)
         self._build_ui()
-
-        if not _DEPS_OK:
-            self._status(
-                "⚠  Modules manquants — installez : pip install requests Pillow",
-                color="#e53935",
-            )
-            return
-
-        threading.Thread(target=self._load_all_definitions, daemon=True).start()
+        threading.Thread(target=self._load_from_local_repo, daemon=True).start()
 
     # ─── UI ──────────────────────────────────────────────────────────────────
 
@@ -97,7 +77,7 @@ class LabwareBrowserFrame(ctk.CTkFrame):
         ).pack(side="left", padx=(4, 0))
 
         self.status_lbl = ctk.CTkLabel(
-            toolbar, text="En attente…", text_color="#888", font=("Arial", 11),
+            toolbar, text="Chargement…", text_color="#888", font=("Arial", 11),
         )
         self.status_lbl.pack(side="right", padx=10)
 
@@ -111,53 +91,38 @@ class LabwareBrowserFrame(ctk.CTkFrame):
 
     # ─── Data fetching ───────────────────────────────────────────────────────
 
-    def _load_all_definitions(self):
-        try:
-            resp = requests.get(_GITHUB_DIR_URL, timeout=12)
-            resp.raise_for_status()
-            entries = resp.json()
-        except Exception as exc:
-            self.after(0, lambda: self._status(f"Erreur réseau : {exc}", "#e53935"))
+    def _load_from_local_repo(self):
+        """Scanne le dépôt local et charge les métadonnées de chaque labware."""
+        if not os.path.isdir(COLLECTION_DIR):
+            self.after(0, lambda: self._status(
+                f"Dépôt local introuvable : {COLLECTION_DIR}", "#e53935"
+            ))
             return
 
-        names = [e["name"] for e in entries if e["type"] == "dir"]
-        total = len(names)
-        metas: list[dict] = []
-
-        for idx, name in enumerate(names):
-            meta = self._fetch_meta(name)
-            if meta:
-                metas.append(meta)
-            self.after(0, lambda n=idx + 1: self._status(f"Chargement… {n}/{total}"))
-
-        self.after(0, lambda: self._populate_grid(metas))
-
-    def _fetch_meta(self, load_name: str):
-        meta_path = os.path.join(CACHE_DIR, f"{load_name}_meta.json")
-        full_path = os.path.join(CACHE_DIR, f"{load_name}.json")
-
-        if os.path.exists(meta_path):
+        metas = []
+        for load_name in os.listdir(COLLECTION_DIR):
+            subdir = os.path.join(COLLECTION_DIR, load_name)
+            if not os.path.isdir(subdir):
+                continue
+            meta_path = os.path.join(subdir, f"{load_name}_meta.json")
+            json_path = os.path.join(subdir, f"{load_name}.json")
+            if not os.path.exists(meta_path):
+                continue
             try:
                 with open(meta_path, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except Exception:
-                pass
-
-        for version in (3, 2, 1):
-            url = f"{_RAW_BASE_URL}/{load_name}/{version}.json"
-            try:
-                r = requests.get(url, timeout=8)
-                if r.status_code == 200:
-                    data = r.json()
-                    with open(full_path, "w", encoding="utf-8") as f:
-                        json.dump(data, f)
-                    meta = _extract_meta(data, load_name, full_path)
-                    with open(meta_path, "w", encoding="utf-8") as f:
-                        json.dump(meta, f)
-                    return meta
+                    meta = json.load(f)
+                # Override fullJsonPath to the actual file in the local repo
+                meta["fullJsonPath"] = json_path
+                metas.append(meta)
             except Exception:
                 continue
-        return None
+
+        if metas:
+            self.after(0, lambda m=metas: self._populate_grid(m))
+        else:
+            self.after(0, lambda: self._status(
+                "Aucun labware trouvé dans le dépôt local.", "#ff9800"
+            ))
 
     # ─── Grid ────────────────────────────────────────────────────────────────
 
@@ -246,6 +211,8 @@ class LabwareBrowserFrame(ctk.CTkFrame):
     # ─── Images ──────────────────────────────────────────────────────────────
 
     def _load_all_images(self):
+        if not _PIL_OK:
+            return
         for meta, card in self._all_cards:
             ctk_img = self._fetch_image(meta["loadName"])
             if ctk_img:
@@ -256,33 +223,20 @@ class LabwareBrowserFrame(ctk.CTkFrame):
                 )
 
     def _fetch_image(self, load_name: str):
+        """Charge l'image depuis le sous-dossier du dépôt local."""
+        subdir = os.path.join(COLLECTION_DIR, load_name)
         for ext in (".jpg", ".png", ".gif"):
-            cache_path = os.path.join(CACHE_DIR, f"{load_name}{ext}")
-            if os.path.exists(cache_path):
+            img_path = os.path.join(subdir, f"{load_name}{ext}")
+            if os.path.exists(img_path):
                 try:
                     pil = (
-                        Image.open(cache_path).convert("RGBA")
+                        Image.open(img_path).convert("RGBA")
                         .resize((_IMG_W, _IMG_H), Image.LANCZOS)
                     )
                     return ctk.CTkImage(light_image=pil, dark_image=pil,
                                         size=(_IMG_W, _IMG_H))
                 except Exception:
                     continue
-
-            url = f"{_IMG_BASE_URL}/{load_name}{ext}"
-            try:
-                r = requests.get(url, timeout=6)
-                if r.status_code == 200:
-                    with open(cache_path, "wb") as f:
-                        f.write(r.content)
-                    pil = (
-                        Image.open(BytesIO(r.content)).convert("RGBA")
-                        .resize((_IMG_W, _IMG_H), Image.LANCZOS)
-                    )
-                    return ctk.CTkImage(light_image=pil, dark_image=pil,
-                                        size=(_IMG_W, _IMG_H))
-            except Exception:
-                continue
         return None
 
     # ─── Filter ──────────────────────────────────────────────────────────────
@@ -308,26 +262,3 @@ class LabwareBrowserFrame(ctk.CTkFrame):
                     row += 1
             else:
                 card.grid_remove()
-
-
-def _extract_meta(data: dict, load_name: str, full_json_path: str) -> dict:
-    metadata   = data.get("metadata", {})
-    wells      = data.get("wells", {})
-    dimensions = data.get("dimensions", {})
-    brand      = data.get("brand", {}).get("brand", "")
-
-    max_vol = (
-        max((w.get("totalLiquidVolume", 0) for w in wells.values()), default=0)
-        if wells else 0
-    )
-    return {
-        "loadName":        load_name,
-        "displayName":     metadata.get("displayName", load_name),
-        "displayCategory": metadata.get("displayCategory", ""),
-        "brand":           brand,
-        "wellCount":       len(wells),
-        "maxVolume":       max_vol,
-        "xDimension":      dimensions.get("xDimension", 127.76),
-        "yDimension":      dimensions.get("yDimension", 85.48),
-        "fullJsonPath":    full_json_path,
-    }
