@@ -50,16 +50,21 @@ DECK_THICKNESS_MM = 3.0
 OPENSCAD_FN = 64
 
 # Exécutables externes (None → auto-détection via PATH)
-# Exemples d'override : r"C:\Program Files\OpenSCAD\openscad.exe"
-OPENSCAD_EXECUTABLE: str | None = r"C:/Program Files/OpenSCAD/openscad.exe"
+# Override example: OPENSCAD_EXECUTABLE = r"C:\Program Files\OpenSCAD\openscad.exe"
+OPENSCAD_EXECUTABLE: str | None = None
 BLENDER_EXECUTABLE:  str | None = None
 
 
 # --- 3-TER. DOSSIER DE SORTIE DES EXPÉRIENCES ---
-# Racine absolue où sont enregistrés tous les exports (JSON, DXF, G-code,
+# Dossier racine où sont enregistrés tous les exports (JSON, DXF, G-code,
 # SCAD, STL, .blend, pattern LED). Un sous-dossier daté est créé automatiquement
 # pour chaque expérience (ex. "2026-04-24_experience").
-EXPERIMENT_OUTPUT_DIR = r"C:\Users\Alienor\Documents\Projects\Jubilee\science-jubilee-interface\interface_graphique\experiment_deck"
+# Default: <interface_graphique>/experiment_deck/  (relative to this file)
+import os as _os
+EXPERIMENT_OUTPUT_DIR: str = _os.path.join(
+    _os.path.dirname(_os.path.abspath(__file__)), "experiment_deck"
+)
+del _os
 
 
 # --- 4. RÈGLES DE COLLISION ET PLACEMENT (Interface) ---
@@ -97,7 +102,9 @@ OUTILS_LISTE = ["None", "Pipette", "Inoculator", "Fluo", "stylo", "Other"]
 # --- 7. DÉFINITIONS DU MATÉRIEL (LABWARE) ---
 # Dépôt local des labwares pré-téléchargés (JSON, métadonnées, images, STL, SCAD).
 # Chaque labware est dans un sous-dossier : labware_definition/<load_name>/
-LABWARE_REPO_PATH = r"C:\Users\Alienor\Documents\Projects\Jubilee\labware"
+# ⚠️  REQUIRED — set this to your local clone of the labware repository.
+# Example: r"C:\Users\<you>\Documents\Projects\Jubilee\labware"
+LABWARE_REPO_PATH: str = ""
 
 # Base de données des labwares utilisables
 # w_mm: largeur (axe Y machine), h_mm: longueur (axe X machine)

@@ -1,5 +1,10 @@
 # 🖥️ Graphical User Interface – Jubilee Layout Designer
 
+> **Documentation has been consolidated into the [root README](../README.md).**
+> All installation, configuration, and usage instructions are maintained there.
+
+
+
 <img width="1920" height="1020" alt="image" src="https://github.com/user-attachments/assets/b9f23d3c-060a-4648-8b81-c446124a8f5e" />
 
 ## 📌 Description

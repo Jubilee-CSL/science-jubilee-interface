@@ -2,7 +2,7 @@
 """
 =========================================================================================
 Projet      : Science-Jubilee
-Fichier     : export_utils.py (ou nom de ton fichier)
+Fichier     : exporter.py
 Auteur      : [SABATIÉ Léo YAHIAOUI Rayan  / Projet industriel ROB4]
 Date        : 10 Avril 2026
 Description : Module de gestion des exports pour l'interface graphique.
@@ -19,6 +19,7 @@ import os
 import ezdxf
 
 import app_paths
+from app_paths import get_experience_name
 from constants import (
     DIAMETRE_TROU, LABWARE, OFFSET_CONTOUR,
     OFFSET_TROU_LEFT_X, OFFSET_TROU_LEFT_Y,
@@ -69,7 +70,7 @@ def export_layout(placed_objects, slot_assignments, canvas, canvas_plateau, file
 
     # Structure de base du fichier de configuration Jubilee
     data = {
-        "name": "Experience1", 
+        "name": get_experience_name(),
         "type": "SLAS", 
         "deck_offset": [0.0, 0.0],
         "slots": {}, 
@@ -184,8 +185,6 @@ def export_to_dxf(json_file="experience.json"):
             
             cxj, cyj = slot["coordinates"]
             wj, hj = slot.get("width", 0), slot.get("length", 0)
-            print(cxj, cyj)
-
             # Calcul des 4 coins en Jubilee autour du centre (cxj, cyj)
             # wj est sur l'axe X (bas), hj sur l'axe Y (droite)
             corners_jub = [
