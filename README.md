@@ -85,10 +85,13 @@ The graphical interface (`interface_graphique/main.py`) is a desktop application
 git clone https://github.com/leosabatie-eng/science-jubilee.git
 cd science-jubilee
 
-# 2. Install GUI dependencies
+# 2. Clone the labware repository (required for the labware browser)
+git clone https://github.com/leosabatie-eng/labware.git /path/to/labware
+
+# 3. Install GUI dependencies
 pip install customtkinter ezdxf Pillow
 
-# 3. (Optional) Install the core science_jubilee library
+# 4. (Optional) Install the core science_jubilee library
 pip install -e .
 ```
 
@@ -104,9 +107,9 @@ Open `interface_graphique/constants.py` and adjust the two path constants for yo
 # Absolute path where dated experiment folders are created
 EXPERIMENT_OUTPUT_DIR = r"C:\path\to\your\experiment_deck"
 
-# Absolute path to your local labware repository
+# Absolute path to your local labware repository (cloned in step 2 above)
 # Expected structure: <LABWARE_REPO_PATH>/labware_definition/<labware_name>/<labware_name>.json
-LABWARE_REPO_PATH = r"C:\path\to\your\labware"
+LABWARE_REPO_PATH = r"C:\path\to\labware"
 
 # (Optional) Override auto-detected OpenSCAD / Blender executables
 OPENSCAD_EXECUTABLE: str | None = r"C:\Program Files\OpenSCAD\openscad.exe"

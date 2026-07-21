@@ -47,6 +47,24 @@ def import_stl(path: str) -> None:
         bpy.ops.import_mesh.stl(filepath=path)  # Blender 3.x / legacy
 
 
+def apply_scale_and_origin(obj) -> None:
+    """
+    Applique une échelle mm → m (×0.001) sur l'objet puis déplace l'origine
+    au centre géométrique du maillage.
+    Les STL OpenSCAD sont en millimètres ; Blender travaille en mètres.
+    """
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+
+    # 1. Changer l'échelle mm → m
+    obj.scale = (0.001, 0.001, 0.001)
+    bpy.ops.object.transform_apply(scale=True)
+
+    # 2. Déplacer l'origine au centre géométrique
+    bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY", center="BOUNDS")
+
+
 def main() -> None:
     output_blend, stl_dir = parse_args()
 
@@ -62,8 +80,10 @@ def main() -> None:
         print(f"[assemble_deck]   + {name}")
         import_stl(stl)
         # L'objet actif après import est celui qu'on vient de charger.
-        if bpy.context.active_object is not None:
-            bpy.context.active_object.name = name
+        obj = bpy.context.active_object
+        if obj is not None:
+            obj.name = name
+            apply_scale_and_origin(obj)
 
     os.makedirs(os.path.dirname(os.path.abspath(output_blend)), exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=output_blend)

@@ -104,7 +104,7 @@ OUTILS_LISTE = ["None", "Pipette", "Inoculator", "Fluo", "stylo", "Other"]
 # Chaque labware est dans un sous-dossier : labware_definition/<load_name>/
 # ⚠️  REQUIRED — set this to your local clone of the labware repository.
 # Example: r"C:\Users\<you>\Documents\Projects\Jubilee\labware"
-LABWARE_REPO_PATH: str = ""
+LABWARE_REPO_PATH: str = r"C:\Users\Alienor\Documents\Projects\Jubilee\labware"
 
 # Base de données des labwares utilisables
 # w_mm: largeur (axe Y machine), h_mm: longueur (axe X machine)
