@@ -15,6 +15,9 @@ Description : Module de gestion des exports pour l'interface graphique.
 import json
 import math
 import os
+import sys
+import subprocess
+from tkinter import messagebox
 
 import ezdxf
 
@@ -25,6 +28,7 @@ from constants import (
     OFFSET_TROU_LEFT_X, OFFSET_TROU_LEFT_Y,
     OFFSET_TROU_RIGHT_X, OFFSET_TROU_RIGHT_Y,
     PLATEAU_H_MM, PLATEAU_W_MM,
+    TWIN_REPO_PATH,JUBILEE_REPO_PATH,BLENDER_EXECUTABLE
 )
 
 
@@ -323,3 +327,28 @@ def json_to_gcode(json_file, gcode_file, z_up=30.0, z_down=20.0, feedrate=4000):
             g.write(f"G1 Z{z_up} F600\n\n")
 
     print(f"✅ G-code généré avec succès : {gcode_path}")
+
+def testgcode_to_twin(gcode_file):
+    
+    bat_path = os.path.join(TWIN_REPO_PATH,"from_gcode", "run_latest_gcode_animation.bat") 
+
+    cmd = [
+        bat_path,
+        JUBILEE_REPO_PATH,
+        TWIN_REPO_PATH,
+        BLENDER_EXECUTABLE,
+        gcode_file
+    ]
+
+    try:
+        subprocess.Popen(cmd, shell=True)
+    except Exception as e:
+        messagebox.showerror("Execution Error", f"Impossible de lancer la simulation :\n{e}")
+
+def launch_raytracing():
+    rt_path = os.path.join(TWIN_REPO_PATH, "ray_tracing.py") 
+    sys.path.append(rt_path)
+    from ray_tracing import ray_tracing_cd
+
+    ray_tracing_cd()
+    

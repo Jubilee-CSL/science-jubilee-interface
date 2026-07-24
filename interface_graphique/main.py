@@ -34,6 +34,8 @@ class App(ctk.CTk):
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
+        self.selected_gcode: str | None = None
+
         self._build_ui()
         self._bind_shortcuts()
 
@@ -73,6 +75,9 @@ class App(ctk.CTk):
             save_all=self._save_all,
             load_config=self.workspace.load_configuration,
             clear_canvas=self.workspace.clear_canvas,
+            choose_gcode=self._choose_gcode,
+            launch_twinsim=self._launch_twinsim,
+            launch_raytracing=self._launch_raytracing,
         )
 
     def _bind_shortcuts(self):
@@ -147,6 +152,15 @@ class App(ctk.CTk):
         msg = f"{detail}\n\n\U0001f4c1 {folder}" if detail else f"\U0001f4c1 {folder}"
         if messagebox.askyesno(title, msg + "\n\nOuvrir le dossier ?"):
             os.startfile(folder)
+
+    def _choose_gcode(self,filename):
+        self.selected_gcode = filename
+
+    def _launch_twinsim(self):
+        exporter.testgcode_to_twin(self.selected_gcode)
+
+    def _launch_raytracing(self):
+        exporter.launch_raytracing()
 
     # ─── Callbacks inter-panneaux ────────────────────────────────────────────
 

@@ -12,6 +12,7 @@ from typing import Callable
 import customtkinter as ctk
 
 import app_paths
+import os
 
 
 @dataclass
@@ -19,6 +20,10 @@ class SidebarCallbacks:
     save_all:     Callable[[], None]
     load_config:  Callable[[], None]
     clear_canvas: Callable[[], None]
+    choose_gcode:  Callable[[], None]
+    launch_twinsim: Callable[[], None]
+    launch_raytracing: Callable[[], None]
+
 
 
 class Sidebar(ctk.CTkFrame):
@@ -81,6 +86,29 @@ class Sidebar(ctk.CTkFrame):
             self, text="Vider plateau",
             fg_color="#c62828",
             command=self._cb.clear_canvas,
+        ).pack(fill="x", pady=4, padx=10)
+
+        self.folder = app_paths.gcode_log_dir()
+        self.filelist = [fname for fname in os.listdir(self.folder)]
+
+        ctk.CTkLabel(self, text="Choisir un gcode:").pack(pady=(0, 4), padx=10)
+        initial_val = self.filelist[0] 
+        self.gcode_filename = ctk.StringVar(value=initial_val)
+        ctk.CTkOptionMenu(
+            self, values=list(self.filelist),
+            variable=self.gcode_filename,
+            command=lambda choice: self._cb.choose_gcode(choice),
+            width=150,anchor='n'
+        ).pack(fill="x", pady=4, padx=10)
+
+        ctk.CTkButton(
+            self, text="Lancer Jumeau Numérique",
+            command=self._cb.launch_twinsim,
+        ).pack(fill="x", pady=4, padx=10)
+
+        ctk.CTkButton(
+            self, text="Lancer Raytracing",
+            command=self._cb.launch_raytracing,
         ).pack(fill="x", pady=4, padx=10)
 
         ctk.CTkLabel(

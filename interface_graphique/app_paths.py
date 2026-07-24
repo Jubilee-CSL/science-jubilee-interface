@@ -10,7 +10,7 @@ Description : Point central de résolution des chemins du projet.
 import os
 from datetime import datetime
 
-from constants import EXPERIMENT_OUTPUT_DIR, LABWARE_REPO_PATH
+from constants import EXPERIMENT_OUTPUT_DIR, LABWARE_REPO_PATH, JUBILEE_REPO_PATH, TWIN_REPO_PATH
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(_THIS_DIR, ".."))
@@ -60,6 +60,12 @@ def labware_cache_dir() -> str:
 def experiment_root() -> str:
     """Racine (configurable) où sont stockés tous les exports d'expérience."""
     return EXPERIMENT_OUTPUT_DIR
+
+def gcode_log_dir() -> str:
+    return os.path.join(JUBILEE_REPO_PATH,"gcode_logs")
+
+def twin_rep_dir() -> str:
+    return TWIN_REPO_PATH
 
 
 def experience_dir(experience_name: str | None = None) -> str:

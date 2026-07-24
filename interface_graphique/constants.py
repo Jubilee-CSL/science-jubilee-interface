@@ -51,8 +51,8 @@ OPENSCAD_FN = 64
 
 # Exécutables externes (None → auto-détection via PATH)
 # Override example: OPENSCAD_EXECUTABLE = r"C:\Program Files\OpenSCAD\openscad.exe"
-OPENSCAD_EXECUTABLE: str | None = None
-BLENDER_EXECUTABLE:  str | None = None
+OPENSCAD_EXECUTABLE: str  = r"C:\Program Files\OpenSCAD\openscad.exe"
+BLENDER_EXECUTABLE:  str = r"C:\Program Files\Blender Foundation\Blender 5.1\blender.exe"
 
 
 # --- 3-TER. DOSSIER DE SORTIE DES EXPÉRIENCES ---
@@ -104,7 +104,11 @@ OUTILS_LISTE = ["None", "Pipette", "Inoculator", "Fluo", "stylo", "Other"]
 # Chaque labware est dans un sous-dossier : labware_definition/<load_name>/
 # ⚠️  REQUIRED — set this to your local clone of the labware repository.
 # Example: r"C:\Users\<you>\Documents\Projects\Jubilee\labware"
-LABWARE_REPO_PATH: str = r"C:\Users\Alienor\Documents\Projects\Jubilee\labware"
+LABWARE_REPO_PATH: str = r"C:\Users\INVITE\Documents\STAGE_JUBILEE_IB_26\labware"
+
+#
+TWIN_REPO_PATH: str = r"C:\Users\INVITE\Documents\STAGE_JUBILEE_IB_26\jubilee-blender-twin"
+JUBILEE_REPO_PATH: str = r"C:\Users\INVITE\Documents\STAGE_JUBILEE_IB_26\science_jubilee"
 
 # Base de données des labwares utilisables
 # w_mm: largeur (axe Y machine), h_mm: longueur (axe X machine)
