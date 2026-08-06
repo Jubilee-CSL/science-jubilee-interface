@@ -62,7 +62,9 @@ def experiment_root() -> str:
     return EXPERIMENT_OUTPUT_DIR
 
 def gcode_log_dir() -> str:
-    return os.path.join(JUBILEE_REPO_PATH,"gcode_logs")
+    path = os.path.join(JUBILEE_REPO_PATH, "gcode_logs")
+    os.makedirs(path, exist_ok=True)
+    return path
 
 def twin_rep_dir() -> str:
     return TWIN_REPO_PATH

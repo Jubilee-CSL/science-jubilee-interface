@@ -13,8 +13,8 @@ Description : Module de gestion des exports pour l'interface graphique.
 """
 
 import json
-import math
 import os
+import shutil
 import sys
 import subprocess
 from tkinter import messagebox
@@ -110,6 +110,45 @@ def export_layout(placed_objects, slot_assignments, canvas, canvas_plateau, file
         json.dump(data, f, indent=4, ensure_ascii=False)
     
     print(f"✅ Export JSON réussi dans : {full_path}")
+
+
+def export_deck_with_labware(placed_objects, canvas, canvas_plateau):
+    """Copie les JSON labware dans le dossier expérience et génère deck.json."""
+    x0_px, y0_px, x1_px, y1_px = canvas.coords(canvas_plateau)
+    scale_x = PLATEAU_W_MM / (x1_px - x0_px)
+    scale_y = PLATEAU_H_MM / (y1_px - y0_px)
+    out_dir = app_paths.experience_dir()
+
+    slots = {}
+    for idx, obj in enumerate(placed_objects):
+        x1, y1, x2, y2 = canvas.coords(obj.id)
+        x_mm = round((y1 - y0_px) * scale_y, 2)
+        y_mm = round((x1 - x0_px) * scale_x, 2)
+
+        labware_filename = None
+        if obj.json_name:
+            src = app_paths.resolve_labware_json(obj.json_name)
+            if src:
+                labware_filename = os.path.basename(src)
+                shutil.copy2(src, os.path.join(out_dir, labware_filename))
+
+        slots[str(idx)] = {
+            "offset": [x_mm, y_mm],
+            "has_labware": False,
+            "labware": labware_filename,
+        }
+
+    data = {
+        "deck_type": "Lab Automation Deck",
+        "deck_slots": {"total": len(slots), "type": "SLAS Standard Labware"},
+        "slots": slots,
+        "offset_from": {"corner": "bottom_left"},
+    }
+
+    out_path = os.path.join(out_dir, "deck.json")
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+    print(f"✅ deck.json + labware JSON exportés dans : {out_dir}")
 
 
 def export_to_dxf(json_file="experience.json"):
@@ -218,19 +257,7 @@ def export_to_dxf(json_file="experience.json"):
         print(f"✅ Fichier {out_path} généré avec succès.")
 
 
-def json_to_gcode(json_file, gcode_file, z_up=30.0, z_down=20.0, feedrate=4000):
-    """
-    Traduit les positions géométriques d'un fichier JSON en commandes G-code 
-    pour permettre à la machine Jubilee de dessiner le plan physique avec un stylo.
-    
-    Args:
-        json_file (str): Fichier de configuration source.
-        gcode_file (str): Fichier G-code de destination.
-        z_up (float): Hauteur de dégagement de l'outil (Z).
-        z_down (float): Hauteur de travail (Z).
-        feedrate (int): Vitesse de déplacement (F).
-    """
-    # Résolution des chemins (crée le dossier si nécessaire)
+def json_to_gcode(json_file, gcode_file, z_up=10.0, z_down=0.0, feedrate=4000):
     json_path  = app_paths.resolve_deck_json(json_file)
     gcode_path = app_paths.resolve_deck_json(gcode_file)
 
@@ -241,89 +268,21 @@ def json_to_gcode(json_file, gcode_file, z_up=30.0, z_down=20.0, feedrate=4000):
         print(f"❌ Erreur lecture JSON ({json_path}): {e}")
         return
 
-    with open(gcode_path, 'w', encoding='utf-8') as g:
-        # --- INITIALISATION DE LA MACHINE ---
-        g.write("; G-code genere directement depuis JSON\n")
-        g.write("G21 ; Unites en mm\n")
-        g.write("G90 ; Positionnement absolu\n")
-        g.write(f"G0 Z{z_up} F600 ; Lever le stylo\n\n")
+    with open(gcode_path, "w", encoding="utf-8") as g:
+        g.write("G21 ; mm\nG90 ; absolu\n")
+        g.write(f"G0 Z{z_up} F600\n\n")
 
-        # Séquence de verrouillage de l'outil
-        param = "P"
-        g.write(f"G4 {param}{4000}\n")
-        g.write("G91\n")   
-        g.write("G1 U10 F6000 H0\n") 
-        g.write("G1 U200 F6000 H1\n") 
-        g.write("G90\n\n") 
-
-        # --- DÉFINITION DES OFFSETS PHYSIQUES ---
-        x_0_0 = -4     # Décalage origine physique X
-        y_0_0 = -43.5  # Décalage origine physique Y
-        offset_stylo = 2
-
-        # --- 1. DESSIN DU CONTOUR EXTERIEUR ---
-        points_contour = [
-            (x_0_0 + offset_stylo, y_0_0 + offset_stylo), 
-            (PLATEAU_W_MM + x_0_0 - offset_stylo, y_0_0 + offset_stylo), 
-            (PLATEAU_W_MM + x_0_0 - offset_stylo, PLATEAU_H_MM + y_0_0 - offset_stylo), 
-            (x_0_0 + offset_stylo, PLATEAU_H_MM + y_0_0 - offset_stylo), 
-            (x_0_0 + offset_stylo, y_0_0 + offset_stylo)
-        ]
-        
-        g.write("; --- Contour Plateau ---\n")
-        g.write(f"G0 X{points_contour[0][0]} Y{points_contour[0][1]} F{feedrate}\n")
-        g.write(f"G1 Z{z_down} F800\n")
-        for x, y in points_contour[1:]:
-            g.write(f"G1 X{x:.3f} Y{y:.3f}\n")
-        g.write(f"G1 Z{z_up} F600\n\n")
-
-        # --- 2. DESSIN DES TROUS DE FIXATION ---
-        g.write("; --- Trous de Fixation ---\n")
-        r_hole = DIAMETRE_TROU / 2
-        trous_pos = [
-            (OFFSET_TROU_LEFT_Y + x_0_0, -OFFSET_TROU_LEFT_X + y_0_0),
-            (PLATEAU_H_MM - OFFSET_TROU_LEFT_Y + x_0_0, -OFFSET_TROU_LEFT_X + y_0_0),
-            (PLATEAU_W_MM - OFFSET_TROU_RIGHT_Y + x_0_0, PLATEAU_H_MM + OFFSET_TROU_RIGHT_X + y_0_0),
-            (OFFSET_TROU_RIGHT_Y + x_0_0, PLATEAU_H_MM + OFFSET_TROU_RIGHT_X + y_0_0)
-        ]
-        
-        for tx, ty in trous_pos:
-            g.write(f"G0 X{tx + r_hole:.3f} Y{ty:.3f} F{feedrate}\n")
-            g.write(f"G1 Z{z_down} F800\n")
-            # Approximation du cercle en 32 segments linéaires
-            for i in range(1, 33):
-                angle = math.radians(i * (360/32))
-                px = tx + r_hole * math.cos(angle)
-                py = ty + r_hole * math.sin(angle)
-                g.write(f"G1 X{px:.3f} Y{py:.3f}\n")
-            g.write(f"G1 Z{z_up} F600\n\n")
-
-        # --- 3. DESSIN DES EMPLACEMENTS LABWARES ---
-        g.write("; --- Labwares ---\n")
-        slots = data.get("slots", {})
-        
-        for slot in slots.values():
-            if not slot.get("has_labware", False): continue
-            
+        for slot in data.get("slots", {}).values():
+            if not slot.get("has_labware", False):
+                continue
             x1, y1 = slot["coordinates"]
-            w, h = slot.get("width", 0), slot.get("length", 0)
-            
-            x2 = x1 + h
-            y2 = y1 + w
-            
-            # Application des offsets physiques sur les 4 coins
-            pts = [
-                (x1+x_0_0, y1+y_0_0), 
-                (x2+x_0_0, y1+y_0_0), 
-                (x2+x_0_0, y2+y_0_0), 
-                (x1+x_0_0, y2+y_0_0), 
-                (x1+x_0_0, y1+y_0_0)
-            ]
-            
+            x2 = x1 + slot.get("length", 0)
+            y2 = y1 + slot.get("width", 0)
+            pts = [(x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)]
             g.write(f"G0 X{pts[0][0]:.3f} Y{pts[0][1]:.3f} F{feedrate}\n")
             g.write(f"G1 Z{z_down} F800\n")
-            for px, py in pts[1:]:
-                g.write(f"G1 X{px:.3f} Y{py:.3f}\n")
+            for x, y in pts[1:]:
+                g.write(f"G1 X{x:.3f} Y{y:.3f}\n")
             g.write(f"G1 Z{z_up} F600\n\n")
 
     print(f"✅ G-code généré avec succès : {gcode_path}")

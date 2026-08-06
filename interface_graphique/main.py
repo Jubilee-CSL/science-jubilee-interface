@@ -98,14 +98,21 @@ class App(ctk.CTk):
             self.workspace.canvas_plateau,
         )
 
-        # 2. LED pattern
+        # 2. deck.json + labware JSONs (format science_jubilee, chemins relatifs)
+        exporter.export_deck_with_labware(
+            self.workspace.placed_objects,
+            self.workspace.canvas,
+            self.workspace.canvas_plateau,
+        )
+
+        # 3. LED pattern
         exporter.export_led_pattern(self.led_panel.light_values)
 
-        # 3. DXF
+        # 4. DXF
         exporter.export_to_dxf("experience.json")
 
-        # 4. G-code
-        exporter.json_to_gcode("experience.json", "plan_jubilee.txt")
+        # 5. G-code
+        exporter.json_to_gcode("experience.json", "plan_jubilee.gcode")
 
         folder = app_paths.experience_dir()
 
