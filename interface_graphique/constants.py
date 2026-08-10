@@ -100,15 +100,9 @@ OUTILS_LISTE = ["None", "Pipette", "Inoculator", "Fluo", "stylo", "Other"]
 
 
 # --- 7. DÉFINITIONS DU MATÉRIEL (LABWARE) ---
-# Dépôt local des labwares pré-téléchargés (JSON, métadonnées, images, STL, SCAD).
-# Chaque labware est dans un sous-dossier : labware_definition/<load_name>/
-# ⚠️  REQUIRED — set this to your local clone of the labware repository.
-# Example: r"C:\Users\<you>\Documents\Projects\Jubilee\labware"
-LABWARE_REPO_PATH: str = r"C:\Users\Alienor\Documents\Projects\Jubilee\labware"
-
-#
-TWIN_REPO_PATH: str = r"C:\Users\Alienor\Documents\Projects\Jubilee\jubilee-blender-twin"
-JUBILEE_REPO_PATH: str = r"C:\Users\Alienor\Documents\Projects\Jubilee\science_jubilee"
+# Labware definitions are discovered at runtime from the installed jubilee-labware
+# package via the 'jubilee.paths' entry point.  Run: pip install jubilee-labware
+# See app_paths.labware_collection_dir() for the resolution logic.
 
 # Base de données des labwares utilisables
 # w_mm: largeur (axe Y machine), h_mm: longueur (axe X machine)

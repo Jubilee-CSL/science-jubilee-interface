@@ -164,6 +164,8 @@ class App(ctk.CTk):
         self.selected_gcode = filename
 
     def _launch_twinsim(self):
+        if not self.selected_gcode:
+            return
         exporter.testgcode_to_twin(self.selected_gcode)
 
     def _launch_raytracing(self):

@@ -28,8 +28,9 @@ from constants import (
     OFFSET_TROU_LEFT_X, OFFSET_TROU_LEFT_Y,
     OFFSET_TROU_RIGHT_X, OFFSET_TROU_RIGHT_Y,
     PLATEAU_H_MM, PLATEAU_W_MM,
-    TWIN_REPO_PATH,JUBILEE_REPO_PATH,BLENDER_EXECUTABLE
+    BLENDER_EXECUTABLE,
 )
+from app_paths import gcode_log_dir, jubilee_repo_root, twin_rep_dir
 
 
 def export_led_pattern(light_data, filename="pattern_lumiere.json"):
@@ -288,25 +289,37 @@ def json_to_gcode(json_file, gcode_file, z_up=10.0, z_down=0.0, feedrate=4000):
     print(f"✅ G-code généré avec succès : {gcode_path}")
 
 def testgcode_to_twin(gcode_file):
-    
-    bat_path = os.path.join(TWIN_REPO_PATH,"from_gcode", "run_latest_gcode_animation.bat") 
-
+    twin_dir = twin_rep_dir()
+    if twin_dir is None:
+        messagebox.showerror(
+            "Configuration Error",
+            "jubilee-blender-twin n'est pas enregistré.\n"
+            "Enregistrez le dépôt via un entry point 'jubilee.paths / twin_dir'."
+        )
+        return
+    bat_path = os.path.join(twin_dir, "from_gcode", "run_latest_gcode_animation.bat")
     cmd = [
         bat_path,
-        JUBILEE_REPO_PATH,
-        TWIN_REPO_PATH,
+        jubilee_repo_root(),
+        twin_dir,
         BLENDER_EXECUTABLE,
-        gcode_file
+        gcode_file,
     ]
-
     try:
         subprocess.Popen(cmd, shell=True)
     except Exception as e:
         messagebox.showerror("Execution Error", f"Impossible de lancer la simulation :\n{e}")
 
+
 def launch_raytracing():
-    rt_path = os.path.join(TWIN_REPO_PATH, "ray_tracing.py") 
-    sys.path.append(rt_path)
+    twin_dir = twin_rep_dir()
+    if twin_dir is None:
+        messagebox.showerror(
+            "Configuration Error",
+            "jubilee-blender-twin n'est pas enregistré."
+        )
+        return
+    sys.path.append(twin_dir)
     from ray_tracing import ray_tracing_cd
 
     ray_tracing_cd()

@@ -9,8 +9,16 @@ Description : Point central de résolution des chemins du projet.
 
 import os
 from datetime import datetime
+from pathlib import Path
 
-from constants import EXPERIMENT_OUTPUT_DIR, LABWARE_REPO_PATH, JUBILEE_REPO_PATH, TWIN_REPO_PATH
+from constants import EXPERIMENT_OUTPUT_DIR
+
+
+def _load_entry_point(group: str, name: str):
+    """Return the loaded value for the first matching entry point, or None."""
+    from importlib.metadata import entry_points
+    eps = [ep for ep in entry_points(group=group) if ep.name == name]
+    return eps[0].load() if eps else None
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(_THIS_DIR, ".."))
@@ -36,15 +44,18 @@ def reset_experience_session() -> None:
     pass
 
 
-def deck_definition_dir() -> str:
-    return os.path.join(
-        PROJECT_ROOT, "src", "science_jubilee", "decks", "deck_definition"
-    )
-
-
 def labware_collection_dir() -> str:
-    """Dossier racine des labwares pré-téléchargés (sous-dossier par labware)."""
-    return os.path.join(LABWARE_REPO_PATH, "labware_definition")
+    """Labware JSON definitions bundled with the installed jubilee-labware package."""
+    path = _load_entry_point("jubilee.paths", "labware_dir")
+    if path is None:
+        try:
+            import jubilee_labware
+            path = jubilee_labware.LABWARE_DEFINITION_DIR
+        except ImportError:
+            raise RuntimeError(
+                "jubilee-labware is not installed. Run: pip install jubilee-labware"
+            )
+    return str(path)
 
 
 def labware_definition_dir() -> str:
@@ -61,13 +72,28 @@ def experiment_root() -> str:
     """Racine (configurable) où sont stockés tous les exports d'expérience."""
     return EXPERIMENT_OUTPUT_DIR
 
+def jubilee_repo_root() -> str:
+    """Root of the science-jubilee install (repo root for editable installs)."""
+    ep = _load_entry_point("jubilee.paths", "jubilee_dir")
+    if ep is not None:
+        return str(ep())
+    try:
+        import science_jubilee
+        return str(Path(science_jubilee.__file__).resolve().parent.parent)
+    except ImportError:
+        raise RuntimeError("science-jubilee is not installed.")
+
+
 def gcode_log_dir() -> str:
-    path = os.path.join(JUBILEE_REPO_PATH, "gcode_logs")
+    path = os.path.join(jubilee_repo_root(), "gcode_logs")
     os.makedirs(path, exist_ok=True)
     return path
 
-def twin_rep_dir() -> str:
-    return TWIN_REPO_PATH
+
+def twin_rep_dir() -> str | None:
+    """Path to the jubilee-blender-twin install, or None if not registered."""
+    ep = _load_entry_point("jubilee.paths", "twin_dir")
+    return str(ep()) if ep is not None else None
 
 
 def experience_dir(experience_name: str | None = None) -> str:

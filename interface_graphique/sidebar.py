@@ -20,7 +20,7 @@ class SidebarCallbacks:
     save_all:     Callable[[], None]
     load_config:  Callable[[], None]
     clear_canvas: Callable[[], None]
-    choose_gcode:  Callable[[], None]
+    choose_gcode: Callable[[str], None]
     launch_twinsim: Callable[[], None]
     launch_raytracing: Callable[[], None]
 
@@ -88,22 +88,45 @@ class Sidebar(ctk.CTkFrame):
             command=self._cb.clear_canvas,
         ).pack(fill="x", pady=4, padx=10)
 
-        self.folder = app_paths.gcode_log_dir()
-        self.filelist = [fname for fname in os.listdir(self.folder)]
+        folder = app_paths.gcode_log_dir()
+        gcode_paths = [
+            os.path.join(folder, fname)
+            for fname in os.listdir(folder)
+            if fname.lower().endswith(".gcode")
+        ]
+        gcode_paths.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+        self._gcode_map = {os.path.basename(path): path for path in gcode_paths}
+        self.filelist = list(self._gcode_map.keys())
 
         ctk.CTkLabel(self, text="Choisir un gcode:").pack(pady=(0, 4), padx=10)
-        initial_val = self.filelist[0] 
-        self.gcode_filename = ctk.StringVar(value=initial_val)
-        ctk.CTkOptionMenu(
-            self, values=list(self.filelist),
-            variable=self.gcode_filename,
-            command=lambda choice: self._cb.choose_gcode(choice),
-            width=150,anchor='n'
-        ).pack(fill="x", pady=4, padx=10)
+        if self.filelist:
+            initial_val = self.filelist[0]
+            self.gcode_filename = ctk.StringVar(value=initial_val)
+            ctk.CTkOptionMenu(
+                self, values=self.filelist,
+                variable=self.gcode_filename,
+                command=lambda choice: self._cb.choose_gcode(self._gcode_map[choice]),
+                width=150,
+                anchor="n",
+            ).pack(fill="x", pady=4, padx=10)
+            self._cb.choose_gcode(self._gcode_map[initial_val])
+            twin_state = "normal"
+        else:
+            self.gcode_filename = ctk.StringVar(value="Aucun fichier .gcode")
+            ctk.CTkOptionMenu(
+                self,
+                values=["Aucun fichier .gcode"],
+                variable=self.gcode_filename,
+                width=150,
+                anchor="n",
+                state="disabled",
+            ).pack(fill="x", pady=4, padx=10)
+            twin_state = "disabled"
 
         ctk.CTkButton(
             self, text="Lancer Jumeau Numérique",
             command=self._cb.launch_twinsim,
+            state=twin_state,
         ).pack(fill="x", pady=4, padx=10)
 
         ctk.CTkButton(
