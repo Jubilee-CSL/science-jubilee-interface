@@ -33,6 +33,41 @@ from constants import (
 from app_paths import gcode_log_dir, jubilee_repo_root, twin_rep_dir
 
 
+def _rotate_point_z90_centered(x_mm: float, y_mm: float) -> tuple[float, float]:
+        """
+        Rotation +90° autour de Z, autour du centre du plateau, dans le repère Jubilee.
+        Propriété recherchée : +Y devient -X.
+
+        Pour un plateau 305x305 :
+            x' = PLATEAU_W_MM - y
+            y' = x
+        """
+        return PLATEAU_W_MM - y_mm, x_mm
+
+
+def _rotate_bbox_min_corner_z90_centered(
+        x_mm: float,
+        y_mm: float,
+        length_mm: float,
+        width_mm: float,
+) -> tuple[float, float]:
+        """
+        Retourne le coin min (x,y) de la bbox après rotation +90° autour du centre.
+        Rectangle source :
+            - origine (x_mm, y_mm)
+            - longueur selon X (length_mm)
+            - largeur selon Y (width_mm)
+        """
+        corners = [
+                (x_mm, y_mm),
+                (x_mm + length_mm, y_mm),
+                (x_mm + length_mm, y_mm + width_mm),
+                (x_mm, y_mm + width_mm),
+        ]
+        rotated = [_rotate_point_z90_centered(px, py) for px, py in corners]
+        return min(p[0] for p in rotated), min(p[1] for p in rotated)
+
+
 def export_led_pattern(light_data, filename="pattern_lumiere.json"):
     """
     Exporte les 24 valeurs des LEDs vers un fichier JSON destiné à être lu par l'ESP32.
@@ -125,6 +160,13 @@ def export_deck_with_labware(placed_objects, canvas, canvas_plateau):
         x1, y1, x2, y2 = canvas.coords(obj.id)
         x_mm = round((y1 - y0_px) * scale_y, 2)
         y_mm = round((x1 - x0_px) * scale_x, 2)
+        length_mm = round((y2 - y1) * scale_y, 2)
+        width_mm = round((x2 - x1) * scale_x, 2)
+
+        # Rotation globale du deck/labware : +Y -> -X (90° Z)
+        rx_mm, ry_mm = _rotate_bbox_min_corner_z90_centered(
+            x_mm, y_mm, length_mm, width_mm
+        )
 
         labware_filename = None
         if obj.json_name:
@@ -134,7 +176,7 @@ def export_deck_with_labware(placed_objects, canvas, canvas_plateau):
                 shutil.copy2(src, os.path.join(out_dir, labware_filename))
 
         slots[str(idx)] = {
-            "offset": [x_mm, y_mm],
+            "offset": [round(rx_mm, 2), round(ry_mm, 2)],
             "has_labware": False,
             "labware": labware_filename,
         }
@@ -280,9 +322,17 @@ def json_to_gcode(json_file, gcode_file, z_up=10.0, z_down=0.0, feedrate=4000):
             x2 = x1 + slot.get("length", 0)
             y2 = y1 + slot.get("width", 0)
             pts = [(x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)]
-            g.write(f"G0 X{pts[0][0]:.3f} Y{pts[0][1]:.3f} F{feedrate}\n")
+
+            # Rotation globale +90° autour du centre du plateau
+            pts_rot = [_rotate_point_z90_centered(x, y) for x, y in pts]
+
+            # Recalage pour démarrer sur un coin stable (min x puis min y)
+            start_idx = min(range(len(pts_rot) - 1), key=lambda i: (pts_rot[i][0], pts_rot[i][1]))
+            path = pts_rot[start_idx:-1] + pts_rot[:start_idx]
+            path.append(path[0])
+            g.write(f"G0 X{path[0][0]:.3f} Y{path[0][1]:.3f} F{feedrate}\n")
             g.write(f"G1 Z{z_down} F800\n")
-            for x, y in pts[1:]:
+            for x, y in path[1:]:
                 g.write(f"G1 X{x:.3f} Y{y:.3f}\n")
             g.write(f"G1 Z{z_up} F600\n\n")
 
@@ -299,14 +349,33 @@ def testgcode_to_twin(gcode_file):
         return
     bat_path = os.path.join(twin_dir, "from_gcode", "run_latest_gcode_animation.bat")
     cmd = [
-        bat_path,
+        "cmd.exe", "/c", bat_path,
         jubilee_repo_root(),
         twin_dir,
         BLENDER_EXECUTABLE,
         gcode_file,
     ]
     try:
-        subprocess.Popen(cmd, shell=True)
+        env = os.environ.copy()
+        py_paths = []
+        for candidate in (
+            twin_dir,
+            os.path.join(twin_dir, "addons"),
+            os.path.join(twin_dir, "scripts"),
+            os.path.join(twin_dir, "blender_addons"),
+            jubilee_repo_root(),
+        ):
+            if os.path.isdir(candidate):
+                py_paths.append(candidate)
+
+        if py_paths:
+            existing = env.get("PYTHONPATH", "")
+            env["PYTHONPATH"] = os.pathsep.join(py_paths + ([existing] if existing else []))
+
+        # Aide Blender à découvrir les modules/add-ons du twin (dont `interface`).
+        env.setdefault("BLENDER_USER_SCRIPTS", twin_dir)
+
+        subprocess.Popen(cmd, cwd=twin_dir, env=env, shell=False)
     except Exception as e:
         messagebox.showerror("Execution Error", f"Impossible de lancer la simulation :\n{e}")
 

@@ -13,3 +13,9 @@ _EXPERIMENT_DECK_DIR: Path = (
 def get_experiment_deck_dir() -> str:
     """Return the root directory where the interface writes experiment outputs."""
     return str(_EXPERIMENT_DECK_DIR)
+
+
+def interface_dir() -> Path:
+    """Return the science-jubilee-interface repo root."""
+    # src/jubilee_interface/__init__.py → parents: [0] jubilee_interface/, [1] src/, [2] repo root
+    return Path(__file__).resolve().parents[2]

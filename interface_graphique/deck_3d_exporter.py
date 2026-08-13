@@ -120,7 +120,20 @@ def _canvas_to_jubilee_coords(
     x_mm      = (oy1 - y0_px) * scale_y
     width_mm  = (ox2 - ox1) * scale_x   # selon Jubilee Y
     length_mm = (oy2 - oy1) * scale_y   # selon Jubilee X
-    return x_mm, y_mm, length_mm, width_mm
+
+    # Rotation globale +90° autour de Z, centrée sur le plateau : +Y -> -X
+    # On retourne le coin min de la bbox après rotation pour conserver
+    # un ancrage "coin" cohérent avec le reste des exports.
+    corners = [
+        (x_mm, y_mm),
+        (x_mm + length_mm, y_mm),
+        (x_mm + length_mm, y_mm + width_mm),
+        (x_mm, y_mm + width_mm),
+    ]
+    rotated = [(C.PLATEAU_W_MM - py, px) for px, py in corners]
+    rx_mm = min(p[0] for p in rotated)
+    ry_mm = min(p[1] for p in rotated)
+    return rx_mm, ry_mm, length_mm, width_mm
 
 
 @dataclass
@@ -176,7 +189,8 @@ def generate_all_scad(
         # After rotate([0,0,angle]), the body min-corner shifts; we compensate so
         # that the min-corner of the placed model lands exactly on (x_mm, y_mm),
         # matching the `coordinates` field written by exporter.export_layout().
-        rad = math.radians(float(obj.angle))
+        world_angle = (float(obj.angle) + 90.0) % 360.0
+        rad = math.radians(world_angle)
         cos_a, sin_a = math.cos(rad), math.sin(rad)
         corners = [(0.0, 0.0), (xdim, 0.0), (xdim, ydim), (0.0, ydim)]
         rotated = [(cx * cos_a - cy * sin_a, cx * sin_a + cy * cos_a) for cx, cy in corners]
@@ -191,9 +205,9 @@ def generate_all_scad(
             src_stl_fwd = src_stl.replace("\\", "/")
             scad = (
                 f"// {obj.name} — positioned from pre-computed STL\n"
-                f"// coordinates (JSON): ({x_mm:.2f}, {y_mm:.2f}) mm  rotation: {obj.angle}°\n"
+                f"// coordinates (JSON): ({x_mm:.2f}, {y_mm:.2f}) mm  rotation: {world_angle}°\n"
                 f"translate([{tx:.3f}, {ty:.3f}, {C.DECK_THICKNESS_MM:.3f}])\n"
-                f"rotate([0, 0, {obj.angle}])\n"
+                f"rotate([0, 0, {world_angle}])\n"
                 f"import(\"{src_stl_fwd}\");\n"
             )
         else:
@@ -203,7 +217,7 @@ def generate_all_scad(
                 x_mm=x_mm,
                 y_mm=y_mm,
                 z_mm=C.DECK_THICKNESS_MM,
-                rotation_deg=obj.angle,
+                rotation_deg=world_angle,
                 fn=C.OPENSCAD_FN,
                 simplified=False,
             )
