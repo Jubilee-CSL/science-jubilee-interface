@@ -72,7 +72,7 @@ pip install -e .
 # 3. Install the local labware library so the labware browser works
 pip install -e path/to/jubilee-labware
 
-# 4. (Recommended) Install science-jubilee so the sidebar can find gcode_logs/
+# 4. (Recommended) Install science-jubilee so the sidebar can find pipeline_data/gcode_logs/
 pip install -e path/to/science-jubilee
 ```
 
@@ -183,7 +183,7 @@ driver, 12-bit resolution, values 0–4095).
 - **💾 SAUVEGARDER** — triggers the full export pipeline in one click (see [Save-All](#save-all-what-gets-written-and-where)).
 - **Charger Configuration** — reload a saved `experience.json` back onto the canvas.
 - **Vider plateau** — clear the workspace.
-- **Choisir un gcode** — pick one of the G-code files under `<science-jubilee>/gcode_logs/` to feed the digital twin.
+- **Choisir un gcode** — pick one of the G-code files under `<science-jubilee>/pipeline_data/gcode_logs/` to feed the digital twin.
 - **Lancer Jumeau Numérique** — starts the [jubilee-blender-twin](https://github.com/Jubilee-CSL/jubilee-blender-twin) animation for the selected G-code.
 - **Lancer Raytracing** — runs the collision-detection pass in the twin.
 
@@ -351,7 +351,7 @@ pip install -e path/to/jubilee-blender-twin
 
 **Empty G-code dropdown in the sidebar**
 
-The sidebar lists `.gcode` files from `<science-jubilee>/gcode_logs/`. Install
+The sidebar lists `.gcode` files from `<science-jubilee>/pipeline_data/gcode_logs/`. Install
 science-jubilee (`pip install -e path/to/science-jubilee`) and make sure at
 least one recording exists.
 
